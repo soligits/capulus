@@ -10,10 +10,7 @@ create table user(
     id integer primary key autoincrement,
     username text unique not null,
     password text not null,
-    email text unique not null,
-    created timestamp default current_timestamp,
-    first_name text not null,
-    last_name text not null
+    created timestamp default current_timestamp
 );
 
 -- Create msg table
