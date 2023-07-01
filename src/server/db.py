@@ -84,3 +84,155 @@ class DataBase:
         """
         user = self.get_user(username)
         return user['password'] == password
+
+    def save_public_key(self, user_id, public_key):
+        """
+        save a user's public key
+        :param user_id: int
+        :param public_key: string
+        :return: None
+        """
+        self.cursor.execute(
+            'UPDATE user SET public_key = ? WHERE id = ?',
+            (public_key, user_id)
+        )
+        self.conn.commit()
+    
+    def get_public_key(self, username):
+        """
+        get a user's public key
+        :param username: string
+        :return: string
+        """
+        self.cursor.execute(
+            'SELECT public_key FROM user WHERE username = ?',
+            (username,)
+        )
+        return self.cursor.fetchone()['public_key']
+    
+    def get_group_id_by_name(self, group_name):
+        """
+        get a group's id
+        :param group_name: string
+        :return: int
+        """
+        self.cursor.execute(
+            'SELECT id FROM gp WHERE name = ?',
+            (group_name,)
+        )
+        return self.cursor.fetchone()['id']
+
+    def create_group(self, user_id, group_name):
+        """
+        create a group
+        :param user_id: int
+        :param group_name: string
+        :return: None
+        """
+        self.cursor.execute(
+            'INSERT INTO gp (name, owner_id) VALUES (?, ?)',
+            (group_name, user_id)
+        )
+        self.conn.commit()
+    
+    def is_admin(self, user_id, group_id):
+        """
+        check if a user is an admin of a group
+        :param user_id: int
+        :param group_id: int
+        :return: bool
+        """
+        self.cursor.execute(
+            'SELECT user_role FROM gp_users WHERE gp_id = ? AND user_id = ?',
+            (group_id, user_id)
+        )
+        user_role = self.cursor.fetchone()['user_role']
+        return user_role == 'owner' or user_role == 'admin'
+    
+    def is_owner(self, user_id, group_id):
+        """
+        check if a user is the owner of a group
+        :param user_id: int
+        :param group_id: int
+        :return: bool
+        """
+        self.cursor.execute(
+            'SELECT user_role FROM gp_users WHERE gp_id = ? AND user_id = ?',
+            (group_id, user_id)
+        )
+        return self.cursor.fetchone()['user_role'] == 'owner'
+    
+    def add_user_to_group(self, user_id, group_id, user_role):
+        """
+        add a user to a group
+        :param user_id: int
+        :param group_id: int
+        :return: None
+        """
+        self.cursor.execute(
+            'INSERT INTO gp_users (gp_id, user_id, user_role) VALUES (?, ?, ?)',
+            (group_id, user_id, user_role)
+        )
+        self.conn.commit()
+
+    def get_group_users(self, group_id):
+        """
+        get all users in a group
+        :param group_id: int
+        :return: list
+        """
+        self.cursor.execute(
+            'SELECT username FROM user WHERE id IN (SELECT user_id FROM gp_users WHERE gp_id = ?)',
+            (group_id,)
+        )
+        return self.cursor.fetchall()
+    
+    def get_groups(self, user_id):
+        """
+        get all groups a user is in
+        :param user_id: int
+        :return: list
+        """
+        self.cursor.execute(
+            'SELECT name FROM gp WHERE id IN (SELECT gp_id FROM gp_users WHERE user_id = ?)',
+            (user_id,)
+        )
+        return self.cursor.fetchall()
+    
+    def delete_group(self, group_id):
+        """
+        delete a group
+        :param group_id: int
+        :return: None
+        """
+        self.cursor.execute(
+            'DELETE FROM gp WHERE id = ?',
+            (group_id,)
+        )
+        self.conn.commit()
+
+    def is_member(self, user_id, group_id):
+        """
+        check if a user is a member of a group
+        :param user_id: int
+        :param group_id: int
+        :return: bool
+        """
+        self.cursor.execute(
+            'SELECT * FROM gp_users WHERE gp_id = ? AND user_id = ?',
+            (group_id, user_id)
+        )
+        return self.cursor.fetchone() is not None
+    
+    def make_admin(self, user_id, group_id):
+        """
+        make a user an admin of a group
+        :param user_id: int
+        :param group_id: int
+        :return: None
+        """
+        self.cursor.execute(
+            'UPDATE gp_users SET user_role = ? WHERE gp_id = ? AND user_id = ?',
+            ('admin', group_id, user_id)
+        )
+        self.conn.commit()
