@@ -12,10 +12,11 @@ app.config['DATABASE'] = os.path.join(app.instance_path, DB_FILE)
 
 db = DataBase()
 socketio = SocketIO(app)
-g.socketio = socketio
-g.db = db
+with app.app_context():
+    g.socketio = socketio
+    g.db = db
 
-@app.router('/')
+@app.route('/')
 def home():
     return 'ok', 200
 
