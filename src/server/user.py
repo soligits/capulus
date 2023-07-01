@@ -5,6 +5,7 @@ from flask import (
 from cryptography.hazmat.primitives import serialization, hashes
 
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from flask_socketio import join_room, leave_room
 
 socketio = g.socketio
 bp = Blueprint('user', __name__, url_prefix='/user')
@@ -59,6 +60,19 @@ def get_online_users():
     """
     return online_users, 200
 
+@bp.route('/connect/<string:username>', methods=('GET',))
+def connect(username):
+    """
+    connect to a user
+    :return: None
+    """
+    public_key = g.db.get_public_key(username)
+    if public_key is None:
+        return 'User has no public key found', 404
+    else:
+        return public_key, 200
+
+
 @socketio.on('connect')
 def connect(data):
     """
@@ -82,3 +96,36 @@ def disconnect():
         del online_users[user_id]
     else:
         return False
+
+@socketio.on('send_message')
+def send_message(data):
+    """
+    handle the send_message event
+    :return: None
+    """
+    username = data['username']
+    room = data['room']
+    message = data['message']
+    socketio.emit('send_message', message, room=room)
+
+@socketio.on('join')
+def on_join(data):
+    """
+    handle the join event
+    :return: None
+    """
+    username = data['username']
+    room = data['room']
+    join_room(room)
+    socketio.emit('join', username + ' has entered the room.', room=room)
+
+@socketio.on('leave')
+def on_leave(data):
+    """
+    handle the leave event
+    :return: None
+    """
+    username = data['username']
+    room = data['room']
+    leave_room(room)
+    socketio.emit('leave', username + ' has left the room.', room=room)
