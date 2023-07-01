@@ -6,8 +6,8 @@ from cryptography.hazmat.primitives import serialization, hashes
 
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from flask_socketio import join_room, leave_room
+from __main__ import socketio
 
-socketio = g.socketio
 bp = Blueprint('user', __name__, url_prefix='/user')
 
 online_users = set()

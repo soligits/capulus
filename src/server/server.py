@@ -2,7 +2,7 @@ from db import DataBase
 from db import FILE as DB_FILE
 
 import os
-from flask import Flask, g
+from flask import Flask, g, url_for
 from flask_socketio import SocketIO
 
 
@@ -12,13 +12,25 @@ app.config['DATABASE'] = os.path.join(app.instance_path, DB_FILE)
 
 db = DataBase()
 socketio = SocketIO(app)
+
 with app.app_context():
-    g.socketio = socketio
     g.db = db
+
+
+
+from auth import bp as auth_bp
+from user import bp as user_bp
+from group import bp as group_bp
+
+app.register_blueprint(auth_bp)
+app.register_blueprint(user_bp)
+app.register_blueprint(group_bp)
+
 
 @app.route('/')
 def home():
     return 'ok', 200
+
 
 
 

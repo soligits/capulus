@@ -6,7 +6,7 @@ from flask import (
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
-@bp.route('/register', methods=('POST'))
+@bp.route('/register', methods=['POST'])
 def register(request):
     if request.method == 'POST':
         username = request.form['username']
@@ -27,7 +27,7 @@ def register(request):
     else:
         return 'Method not allowed.', 405
 
-@bp.route('/login', methods=('POST'))
+@bp.route('/login', methods=['POST'])
 def login(request):
     if request.method == 'POST':
         username = request.form['username']
@@ -51,7 +51,7 @@ def login(request):
     else:
         return 'Method not allowed.', 405
 
-@bp.route('/logout', methods=('POST'))
+@bp.route('/logout', methods=['POST'])
 def logout(request):
     if request.method == 'POST':
         session.clear()

@@ -5,8 +5,8 @@ from flask import (
 from cryptography.hazmat.primitives import serialization, hashes
 
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from __main__ import socketio
 
-socketio = g.socketio
 bp = Blueprint('group', __name__, url_prefix='/group')
 
 @bp.route('/create', methods=('POST',))
@@ -40,7 +40,7 @@ def invite_user(request):
         g.db.add_user_to_group(user_id, group_name, user_role='member')
         return "User invited successfully", 200
     
-@bp.rout('/group_users/<string:group_name>', methods=('GET',))
+@bp.route('/group_users/<string:group_name>', methods=('GET',))
 def get_group_users(request, group_name):
     """
     get a list of users in a group
