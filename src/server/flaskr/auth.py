@@ -1,4 +1,5 @@
 import functools
+import time
 
 from flask import (
     Blueprint, flash, g, redirect, render_template, request, session, url_for
@@ -57,6 +58,7 @@ def login():
         if error is None:
             session.clear()
             session['user_id'] = user['id']
+            g.online_users[username] = time.time()
             return redirect(url_for('index'))
 
         flash(error)
@@ -75,8 +77,14 @@ def load_logged_in_user():
             'SELECT * FROM user WHERE id = ?', (user_id,)
         ).fetchone()
 
+@bp.before_app_request
+def update_online_users():
+    if g.user is not None:
+        g.online_users[g.user['username']] = time.time()
+
 @bp.route('/logout')
 def logout():
+    del g.online_users[g.user['username']]
     session.clear()
     return redirect(url_for('index'))
 

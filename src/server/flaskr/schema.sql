@@ -13,6 +13,16 @@ create table user(
     created timestamp default current_timestamp
 );
 
+-- Create public_keys table
+create table user_public_keys(
+    id integer primary key autoincrement,
+    user_id integer not null,
+    public_key text not null,
+    created timestamp default current_timestamp,
+    foreign key(user_id) references user(id)
+);
+
+
 -- Create msg table
 create table msg(
     id integer primary key autoincrement,

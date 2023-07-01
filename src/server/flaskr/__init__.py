@@ -1,5 +1,7 @@
 import os
-from flask import Flask
+from flask import Flask, g
+import threading
+from . import heartbeat
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
@@ -29,7 +31,14 @@ def create_app(test_config=None):
     from . import db
     db.init_app(app)
 
+    from . import ca
+    ca.init_app(app)
+
     from . import auth
     app.register_blueprint(auth.bp)
+
+    # threading.Thread(target=heartbeat.heartbeat).start()
+    # g.online_users = heartbeat.online_users
+
 
     return app
