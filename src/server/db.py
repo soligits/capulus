@@ -19,7 +19,7 @@ class DataBase:
         """
         self.conn = None
         try:
-            self.conn = sqlite3.connect(FILE)
+            self.conn = sqlite3.connect(FILE, check_same_thread=False)
         except Error as exception:
             print(exception)
         self.conn.row_factory = sqlite3.Row

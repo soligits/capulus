@@ -1,17 +1,19 @@
 import functools
 
 from flask import (
-    Blueprint, g, session, url_for
+    Blueprint, g, session, url_for, request, redirect
 )
+from __main__ import db
+import json
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @bp.route('/register', methods=['POST'])
-def register(request):
+def register():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        db = g.db
+
+        username = request.json['username']
+        password = request.json['password']
 
         if not username:
             return 'Username is required.', 400
@@ -20,7 +22,7 @@ def register(request):
         else:
             try:
                 db.save_user(username, password)
-            except db.IntegrityError:
+            except db.conn.IntegrityError:
                 return f"User {username} is already registered.", 400
             else:
                 return 'ok', 200
@@ -28,11 +30,10 @@ def register(request):
         return 'Method not allowed.', 405
 
 @bp.route('/login', methods=['POST'])
-def login(request):
+def login():
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        db = g.db
+        username = request.json['username']
+        password = request.json['password']
 
         if not username:
             return 'Username is required.', 400
@@ -47,12 +48,14 @@ def login(request):
             else:
                 session.clear()
                 session['user_id'] = user['id']
+                print(session)
+
                 return 'ok', 200
     else:
         return 'Method not allowed.', 405
 
 @bp.route('/logout', methods=['POST'])
-def logout(request):
+def logout():
     if request.method == 'POST':
         session.clear()
         return 'ok', 200
@@ -61,8 +64,11 @@ def logout(request):
 
 @bp.before_app_request
 def load_logged_in_user():
+
     user_id = session.get('user_id')
-    db = g.db
+    
+    print(user_id)
+
 
     if user_id is None:
         g.user = None
