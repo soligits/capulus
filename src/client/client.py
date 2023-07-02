@@ -2,12 +2,13 @@ import requests
 import utils
 import socketio
 import sys
+import asyncio
 
 myusername = None
 mypassword = None
 
-sio = socketio.Client()
 session = requests.session()
+sio = socketio.Client(http_session=session)
 
 # set up base url
 BASE_URL = 'http://localhost:5000'
@@ -26,7 +27,8 @@ def login(username, password):
     url = BASE_URL + '/auth/login'
     data = {'username': username, 'password': password}
     response = session.post(url, json=data)
-    sio.emit('login')
+
+    # sio.emit('login')
     print(response.text)
 
 
@@ -34,7 +36,7 @@ def logout(username):
     url = BASE_URL + '/auth/logout'
     data = {'username': username}
     response = session.post(url, json=data)
-    sio.emit('logout')
+    # sio.emit('logout')
     print(response.text)
 
 
@@ -85,6 +87,7 @@ def processCommand(command, args):
     elif command == 'chat':
         chat(args[0])
     elif command == 'exit':
+        sio.disconnect()
         exit()
     else:
         print('invalid command')
@@ -104,7 +107,7 @@ def on_disconnect():
 if __name__ == '__main__':
 
     sio.connect(BASE_URL)
-    session.cookies.set('session', sio.sid)
+
     while True:
         command = input('>>> ')
         command = command.split(' ')

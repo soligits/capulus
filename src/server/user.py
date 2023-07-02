@@ -6,8 +6,9 @@ from flask import (
 import os
 
 from flask_socketio import join_room, leave_room
-from __main__ import socketio, db
-from auth import login_required
+from __main__ import socketio, db, authenticated_only
+from flask_login import login_required, current_user
+from models import User
 
 bp = Blueprint('user', __name__, url_prefix='/user')
 
@@ -21,12 +22,13 @@ def publish_key():
     :return: None
     """
     data = request.form
-    user_id = g.user['id']
+    user_id = current_user.get_id()
     public_key = data['public_key']
 
     # verify the signature
     try :
         db.save_public_key(user_id, public_key)
+        current_user.public_key = public_key
         return 'ok', 200
     
     except :
@@ -54,12 +56,18 @@ def get_online_users():
 
 
 @socketio.on('connect')
-def connect(data):
+def connect():
     """
     handle the connect event
     :return: None
     """
-    print('Connected')
+    name = 'Anonymous'
+    if current_user.is_authenticated:
+        username = current_user.username
+        online_users.add(username)
+        join_room(username)
+        name = username
+    print(name + ' Connected.')
 
 @socketio.on('disconnect')
 def disconnect():
@@ -67,20 +75,29 @@ def disconnect():
     handle the disconnect event
     :return: None
     """
-    print('Disconnected')
+    name = 'Anonymous'
+    if current_user.is_authenticated:
+        username = current_user.username
+        leave_room(username)
+        del online_users[username]
+        name = username
+    print(name + ' Connected.')
+
 
 @socketio.on('login')
+@authenticated_only
 def login():
     """
     handle the login event
     :return: None
     """
-    user_id = session.get('user_id')
-    username = db.get_user_by_id(user_id)['username']
+    user_id = current_user.get_id()
+    username = current_user.username
+    print(current_user)
     room = username
     join_room(room)
     online_users.add(username)
-    socketio.emit('login', username + ' has entered the room.', room=room)
+    # socketio.emit('login', username + ' has entered the room.', room=room)
 
 @socketio.on('logout')
 def logout():
@@ -88,13 +105,11 @@ def logout():
     handle the logout event
     :return: None
     """
-    user_id = session.get('user_id')
-    username = db.get_user_by_id(user_id)['username']
+    username = current_user['username']
     room = username
     leave_room(room)
     online_users.remove(username)
-    session.clear()
-    socketio.emit('logout', username + ' has left the room.', room=room)
+    # socketio.emit('logout', username + ' has left the room.', room=room)
 
 @socketio.on('send_message')
 def send_message(data):
