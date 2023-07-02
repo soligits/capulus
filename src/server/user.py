@@ -51,17 +51,6 @@ def get_online_users():
     """
     return list(online_users), 200
 
-@bp.route('/connect/<string:username>', methods=('GET',))
-def connect(username):
-    """
-    connect to a user
-    :return: None
-    """
-    public_key = db.get_public_key(username)
-    if public_key is None:
-        return 'User has no public key found', 404
-    else:
-        return public_key, 200
 
 
 @socketio.on('connect')
@@ -70,11 +59,7 @@ def connect(data):
     handle the connect event
     :return: None
     """
-    user_id = session.get('user_id')
-    if user_id is not None:
-        online_users.add(user_id)
-    else:
-        return False
+    print('Connected')
 
 @socketio.on('disconnect')
 def disconnect():
@@ -82,11 +67,34 @@ def disconnect():
     handle the disconnect event
     :return: None
     """
+    print('Disconnected')
+
+@socketio.on('login')
+def login():
+    """
+    handle the login event
+    :return: None
+    """
     user_id = session.get('user_id')
-    if user_id is not None:
-        del online_users[user_id]
-    else:
-        return False
+    username = db.get_user_by_id(user_id)['username']
+    room = username
+    join_room(room)
+    online_users.add(username)
+    socketio.emit('login', username + ' has entered the room.', room=room)
+
+@socketio.on('logout')
+def logout():
+    """
+    handle the logout event
+    :return: None
+    """
+    user_id = session.get('user_id')
+    username = db.get_user_by_id(user_id)['username']
+    room = username
+    leave_room(room)
+    online_users.remove(username)
+    session.clear()
+    socketio.emit('logout', username + ' has left the room.', room=room)
 
 @socketio.on('send_message')
 def send_message(data):

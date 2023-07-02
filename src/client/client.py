@@ -1,62 +1,46 @@
-import click
 import requests
 import utils
-import json
-import pickle
-import chardet
+import socketio
+import sys
 
+myusername = None
+mypassword = None
 
-
+sio = socketio.Client()
 session = requests.session()
 
 # set up base url
 BASE_URL = 'http://localhost:5000'
+public_keys = {}
 
-# handle subcommands
-@click.group()
-def cli():
-    pass
 
-# subcommand: register
-@cli.command()
-@click.argument('username')
-@click.argument('password')
 def register(username, password):
     url = BASE_URL + '/auth/register'
     data = {'username': username, 'password': password}
     response = requests.post(url, json=data)
     print(response.text)
 
-# subcommand: login
-@cli.command()
-@click.argument('username')
-@click.argument('password')
+
+
 def login(username, password):
     url = BASE_URL + '/auth/login'
     data = {'username': username, 'password': password}
     response = session.post(url, json=data)
+    sio.emit('login')
     print(response.text)
-    print(response.cookies.get_dict())
 
-    with open('cookies.pkl', 'wb') as f:
-        pickle.dump(session.cookies, f)
-        print('session saved')
 
-# subbcommand: logout
-@cli.command()
-@click.argument('username')
 def logout(username):
     url = BASE_URL + '/auth/logout'
     data = {'username': username}
     response = session.post(url, json=data)
-
+    sio.emit('logout')
     print(response.text)
 
-# subcommand: publish_key
-@cli.command()
-@click.argument('password')
-def publishkey(password):
-    key = utils.get_rsa_key(password)
+
+
+def publishkey(username, password):
+    key = utils.get_rsa_key(username, password)
     url = BASE_URL + '/user/publish_key'
 
     data = {
@@ -64,39 +48,65 @@ def publishkey(password):
     }
     # , headers={'Content-Type': 'application/x-www-form-urlencoded'}
     response = session.post(url, data)
+    print(response.text)
 
-# subcommand: get_public_key
-@cli.command()
-@click.argument('username')
+
 def getpublickey(username):
     url = BASE_URL + '/user/get_public_key'
     data = {'username': username}
     response = session.post(url, json=data)
+    public_keys[username] = response.text
     print(response.text)
 
-# subcommand: get_online_users
-@cli.command()
 def getonlineusers():
     url = BASE_URL + '/user/get_online_users'
     response = session.get(url)
     print(response.text)
 
-# add subcommands
-cli.add_command(register)
-cli.add_command(login)
-cli.add_command(logout)
-cli.add_command(publishkey)
+def chat(username):
+    getpublickey(username)
+    public_key = public_keys[username]
+    sio.emit('chat', {'username': username, 'public_key': public_key})
+
+def processCommand(command, args):
+    print(session.cookies.get_dict())
+    if command == 'register':
+        register(args[0], args[1])
+    elif command == 'login':
+        login(args[0], args[1])
+    elif command == 'logout':
+        logout(args[0])
+    elif command == 'publish_key':
+        publishkey(args[0], args[1])
+    elif command == 'get_public_key':
+        getpublickey(args[0])
+    elif command == 'get_online_users':
+        getonlineusers()
+    elif command == 'chat':
+        chat(args[0])
+    elif command == 'exit':
+        exit()
+    else:
+        print('invalid command')
+
+
+@sio.on('connect')
+def on_connect():
+    print('connected to server')
+
+@sio.on('disconnect')
+def on_disconnect():
+    print('disconnected from server')
 
 
 
 
 if __name__ == '__main__':
-    # load sessions
-    try:
-        with open('cookies.pkl', 'rb') as f:
-            session.cookies.update(pickle.load(f))
-            print('session loaded')
-    except FileNotFoundError:
-        print('session empty')
-    print('session cookies:', session.cookies.get_dict())
-    cli()
+
+    sio.connect(BASE_URL)
+    session.cookies.set('session', sio.sid)
+    while True:
+        command = input('>>> ')
+        command = command.split(' ')
+        processCommand(command[0], command[1:])
+    sio.disconnect()

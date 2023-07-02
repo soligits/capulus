@@ -48,7 +48,7 @@ def login():
             else:
                 session.clear()
                 session['user_id'] = user['id']
-                print(session)
+                emit()
 
                 return 'ok', 200
     else:
@@ -66,7 +66,7 @@ def logout():
 def load_logged_in_user():
 
     user_id = session.get('user_id')
-    
+
     print(user_id)
 
 

@@ -2,21 +2,21 @@ from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
 from Crypto.Cipher import AES, PKCS1_OAEP
 
-def generate_rsa_key(secert):
+def generate_rsa_key(name, secert):
     key = RSA.generate(2048)
     encrypted_key = key.export_key(passphrase=secert, pkcs=8, protection="scryptAndAES128-CBC")
-    with open("rsa_key.bin", "wb") as f:
+    with open(name + "_rsa_key.bin", "wb") as f:
         f.write(encrypted_key)
     
     return key
 
-def get_rsa_key(secert):
+def get_rsa_key(name, secert):
     try:
-        with open("rsa_key.bin", "rb") as f:
+        with open(name + "_rsa_key.bin", "rb") as f:
             key = RSA.import_key(f.read(), passphrase=secert)
         return key
     except:
-        return generate_rsa_key(secert)
+        return generate_rsa_key(name, secert)
 
 def encrypt_message(message, recipient_public_key, session_key):
     cipher_rsa = PKCS1_OAEP.new(recipient_public_key)
