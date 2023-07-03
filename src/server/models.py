@@ -1,4 +1,6 @@
-class User:
+from flask_login import UserMixin
+
+class User(UserMixin):
     def __init__(self, id, username, password, public_key):
         self.id = id
         self.username = username
@@ -10,10 +12,6 @@ class User:
         self.username = user['username']
         self.password = user['password']
         self.public_key = user['public_key']
-        
-        self.is_active = False
-        self.is_authenticated = False
-        self.is_anonymous = True
 
     def __repr__(self):
         return '<User {}>'.format(self.username)

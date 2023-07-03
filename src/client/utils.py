@@ -17,6 +17,16 @@ def get_rsa_key(name, secert):
         return key
     except:
         return generate_rsa_key(name, secert)
+    
+def encrypt_message_symmetric(message, session_key):
+    cipher_aes = AES.new(session_key, AES.MODE_EAX)
+    ciphertext, tag = cipher_aes.encrypt_and_digest(message.encode())
+    return cipher_aes.nonce, tag, ciphertext
+
+def decrypt_message_symmetric(nonce, tag, ciphertext, session_key):
+    cipher_aes = AES.new(session_key, AES.MODE_EAX, nonce)
+    plaintext = cipher_aes.decrypt(ciphertext)
+    return plaintext.decode()
 
 def encrypt_message(message, recipient_public_key, session_key):
     cipher_rsa = PKCS1_OAEP.new(recipient_public_key)

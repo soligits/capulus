@@ -27,6 +27,8 @@ def publish_key():
 
     # verify the signature
     try :
+        print(public_key)
+        print(user_id)
         db.save_public_key(user_id, public_key)
         current_user.public_key = public_key
         return 'ok', 200
@@ -79,67 +81,70 @@ def disconnect():
     if current_user.is_authenticated:
         username = current_user.username
         leave_room(username)
-        del online_users[username]
+        online_users.remove(username)
         name = username
     print(name + ' Connected.')
 
 
-@socketio.on('login')
-@authenticated_only
-def login():
-    """
-    handle the login event
-    :return: None
-    """
-    user_id = current_user.get_id()
-    username = current_user.username
-    print(current_user)
-    room = username
-    join_room(room)
-    online_users.add(username)
-    # socketio.emit('login', username + ' has entered the room.', room=room)
-
-@socketio.on('logout')
-def logout():
-    """
-    handle the logout event
-    :return: None
-    """
-    username = current_user['username']
-    room = username
-    leave_room(room)
-    online_users.remove(username)
-    # socketio.emit('logout', username + ' has left the room.', room=room)
 
 @socketio.on('send_message')
+@authenticated_only
 def send_message(data):
     """
     handle the send_message event
     :return: None
     """
-    username = data['username']
+    username = current_user.username
     room = data['room']
     message = data['message']
-    socketio.emit('send_message', message, room=room)
+    data_to_send = {
+        'sender': username,
+        'message': message,
+        'room': room
+    }
+    socketio.emit('receive_message', data_to_send, room=room)
 
 @socketio.on('join')
+@authenticated_only
 def on_join(data):
     """
     handle the join event
     :return: None
     """
-    username = data['username']
+    username = current_user.username
     room = data['room']
     join_room(room)
     socketio.emit('join', username + ' has entered the room.', room=room)
+    print(username + ' joined room ' + room)
 
 @socketio.on('leave')
+@authenticated_only
 def on_leave(data):
     """
     handle the leave event
     :return: None
     """
-    username = data['username']
+    username = current_user.username
     room = data['room']
     leave_room(room)
     socketio.emit('leave', username + ' has left the room.', room=room)
+
+@socketio.on('online')
+@authenticated_only
+def on_online(data):
+    """
+    handle the online event
+    :return: None
+    """
+    username = current_user.username
+    online_users.add(username)
+
+@socketio.on('offline')
+@authenticated_only
+def on_offline(data):
+    """
+    handle the offline event
+    :return: None
+    """
+    username = current_user.username
+    online_users.remove(username)

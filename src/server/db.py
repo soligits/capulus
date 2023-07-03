@@ -4,6 +4,7 @@ DATABASE QUERY FOR READ AND WRITE
 
 import sqlite3
 from sqlite3 import Error
+from threading import Lock
 
 FILE = 'db.sqlite'
 SCHEMA = 'schema.sql'
@@ -25,6 +26,7 @@ class DataBase:
         self.conn.row_factory = sqlite3.Row
 
         self.cursor = self.conn.cursor()
+        self.lock = Lock()
 
     def close(self):
         """
@@ -45,11 +47,13 @@ class DataBase:
         :param password: string
         :return: None
         """
-        self.cursor.execute(
-            'INSERT INTO user (username, password) VALUES (?, ?)',
-            (username, password)
-        )
-        self.conn.commit()
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'INSERT INTO user (username, password) VALUES (?, ?)',
+                (username, password)
+            )
+            self.conn.commit()
     
     def get_user(self, username):
         """
@@ -69,11 +73,13 @@ class DataBase:
         :param user_id: int
         :return: tuple
         """
-        self.cursor.execute(
-            'SELECT * FROM user WHERE id = ?',
-            (user_id,)
-        )
-        return self.cursor.fetchone()
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'SELECT * FROM user WHERE id = ?',
+                (user_id,)
+            )
+            return cursor.fetchone()
     
     def verify_password(self, username, password):
         """
@@ -92,11 +98,13 @@ class DataBase:
         :param public_key: string
         :return: None
         """
-        self.cursor.execute(
-            'UPDATE user SET public_key = ? WHERE id = ?',
-            (public_key, user_id)
-        )
-        self.conn.commit()
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'UPDATE user SET public_key = ? WHERE id = ?',
+                (public_key, user_id)
+            )
+            self.conn.commit()
     
     def get_public_key(self, username):
         """
@@ -104,11 +112,13 @@ class DataBase:
         :param username: string
         :return: string
         """
-        self.cursor.execute(
-            'SELECT public_key FROM user WHERE username = ?',
-            (username,)
-        )
-        return self.cursor.fetchone()['public_key']
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'SELECT public_key FROM user WHERE username = ?',
+                (username,)
+            )
+            return cursor.fetchone()['public_key']
     
     def get_group_id_by_name(self, group_name):
         """

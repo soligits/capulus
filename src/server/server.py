@@ -7,6 +7,7 @@ from flask import Flask, g, url_for
 from flask_socketio import SocketIO, disconnect
 from flask_session import Session
 from flask_login import LoginManager, current_user
+from models import User
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'vnkdjnfjknfl1232#'
@@ -20,6 +21,7 @@ Session(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
+
 db = DataBase()
 socketio = SocketIO(app, manage_session=False)
 
@@ -32,24 +34,26 @@ def authenticated_only(f):
             return f(*args, **kwargs)
     return wrapped
 
+
+
 @login_manager.user_loader
 def load_user(user_id):
-    return db.get_user_by_id(user_id)
+    return User(db.get_user_by_id(user_id))
 
 from auth import bp as auth_bp
 from user import bp as user_bp
 from group import bp as group_bp
+
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(user_bp)
 app.register_blueprint(group_bp)
 
 
+
 @app.route('/')
 def home():
     return 'ok', 200
-
-
 
 
 if __name__ == '__main__':
