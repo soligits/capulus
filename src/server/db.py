@@ -73,6 +73,7 @@ class DataBase:
         :param user_id: int
         :return: tuple
         """
+        print(user_id)
         with self.conn:
             cursor = self.conn.cursor()
             cursor.execute(

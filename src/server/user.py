@@ -36,6 +36,7 @@ def publish_key():
     except :
         return 'Verification failed', 400
 
+@login_required
 @bp.route('/get_public_key', methods=('POST',))
 def get_public_key():
     """
@@ -47,6 +48,7 @@ def get_public_key():
     public_key = db.get_public_key(username)
     return public_key, 200
 
+@login_required
 @bp.route('/get_online_users', methods=('GET',))
 def get_online_users():
     """
@@ -129,22 +131,29 @@ def on_leave(data):
     leave_room(room)
     socketio.emit('leave', username + ' has left the room.', room=room)
 
-@socketio.on('online')
+@socketio.on('logged_in')
 @authenticated_only
-def on_online(data):
+def logged_in(data):
     """
-    handle the online event
+    handle the logged_in event
     :return: None
     """
+    print(current_user)
     username = current_user.username
     online_users.add(username)
+    join_room(username)
+    print(username + ' logged in.')
+    socketio.emit('logged_in', username + ' has logged in.', room=username)
 
-@socketio.on('offline')
+@socketio.on('logged_out')
 @authenticated_only
-def on_offline(data):
+def logged_out(data):
     """
-    handle the offline event
+    handle the logged_out event
     :return: None
     """
     username = current_user.username
     online_users.remove(username)
+    leave_room(username)
+    print(username + ' logged in.')
+    socketio.emit('logged_out', username + ' has logged out.', room=username)

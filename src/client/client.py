@@ -3,11 +3,13 @@ import utils
 import socketio
 from diffiehellman import DiffieHellman
 
+
 myusername = None
 mypassword = None
+myprivatekey = None
 
 session = requests.session()
-sio = socketio.Client(http_session=session)
+sio = socketio.Client(http_session=session, ssl_verify=False)
 
 session_keys = {}
 session_key_numbers = {}
@@ -35,8 +37,8 @@ def login(username, password):
     response = session.post(url, json=data)
     myusername = username
     mypassword = password
-    # sio.emit('online')
-    # sio.emit('join', {'room': username})
+    sio.disconnect()
+    sio.connect(BASE_URL)
     print(response.text)
 
 
@@ -44,8 +46,8 @@ def logout(username):
     url = BASE_URL + '/auth/logout'
     data = {'username': username}
     response = session.post(url, json=data)
-    # sio.emit('offline')
-    # sio.emit('leave', {'room': username})
+    sio.disconnect()
+    sio.connect(BASE_URL)
     print(response.text)
 
 
@@ -152,8 +154,12 @@ def send_message(username):
             'tag': tag,
             'ciphertext': ciphertext
         }
+        rsa_key_bin = utils.get_rsa_key(myusername, mypassword)
+        private_key = rsa_key_bin.export_key()
+        signed_message = utils.sign_message(ciphertext, private_key)
         message_obj = {
             'message': message,
+            'signature': signed_message,
             'type': 'normal',
             'key_number': last_key_number
         }
@@ -208,9 +214,19 @@ def on_join(data):
     # print('\n' + data)
     pass
 
+@sio.on('logged_in')
+def on_logged_in(data):
+    print('\n' + data)
+    
+@sio.on('logged_out')
+def on_logged_out(data):
+    print('\n' + data)
+
 @sio.on('receive_message')
 def on_receive_message(message):
     username = message['sender']
+    if username not in public_keys:
+        getpublickey(username)
     # print(username)
     # print(myusername)
     if username == myusername:
@@ -227,6 +243,12 @@ def on_receive_message(message):
     elif message['type'] == 'normal':
         key_number = int(message['key_number'])
         session_key = session_keys[username][key_number]['shared_key']
+        signature = message['signature']
+        
+        if not utils.verify_signature(message['message']['ciphertext'], signature, public_keys[username]):
+            print('signature not verified')
+            return
+
         message = message['message']
         nonce = message['nonce']
         tag = message['tag']

@@ -6,7 +6,7 @@ import os
 from flask import Flask, g, url_for
 from flask_socketio import SocketIO, disconnect
 from flask_session import Session
-from flask_login import LoginManager, current_user
+from flask_login import LoginManager, current_user, login_user, UserMixin, AnonymousUserMixin
 from models import User
 
 app = Flask(__name__)
@@ -33,10 +33,13 @@ def authenticated_only(f):
             return f(*args, **kwargs)
     return wrapped
 
-
 @login_manager.user_loader
 def load_user(user_id):
-    return User(db.get_user_by_id(user_id))
+    user_row = db.get_user_by_id(user_id)
+    if user_row is None:
+        return AnonymousUserMixin()
+    else:
+        return User(user_row)
 
 from auth import bp as auth_bp
 from user import bp as user_bp
@@ -48,10 +51,12 @@ app.register_blueprint(user_bp)
 app.register_blueprint(group_bp)
 
 
+
 @app.route('/')
 def home():
     return 'ok', 200
 
+ssl_context = ('capulus.crt', 'capulus.key')
 
 if __name__ == '__main__':
     socketio.run(app, debug=True)

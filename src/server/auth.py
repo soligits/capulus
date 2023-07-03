@@ -58,7 +58,7 @@ def login():
 @bp.route('/logout', methods=['POST'])
 def logout():
     if request.method == 'POST':
-        logout_user()
+        User.remove(current_user.id)
         return 'ok', 200
     else:
         return 'Method not allowed.', 405
