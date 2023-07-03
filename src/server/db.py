@@ -61,11 +61,13 @@ class DataBase:
         :param username: string
         :return: tuple
         """
-        self.cursor.execute(
-            'SELECT * FROM user WHERE username = ?',
-            (username,)
-        )
-        return self.cursor.fetchone()
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'SELECT * FROM user WHERE username = ?',
+                (username,)
+            )
+            return cursor.fetchone()
     
     def get_user_id_by_username(self, username):
         """
@@ -79,7 +81,8 @@ class DataBase:
                 'SELECT id FROM user WHERE username = ?',
                 (username,)
             )
-            return cursor.fetchone()['id']
+            result =cursor.fetchone() 
+            return result['id']
 
     
     def get_user_by_id(self, user_id):
@@ -110,7 +113,7 @@ class DataBase:
         :param username: string
         :return: bool
         """
-        return self.get_user(username) is not None
+        return self.is_username_taken(username)
     
     def is_username_taken(self, username):
         """
@@ -118,7 +121,7 @@ class DataBase:
         :param username: string
         :return: bool
         """
-        return self.get_user(username) is not None
+        return self.get_user_id_by_username(username) is not None
 
     
     def verify_password(self, username, password):
@@ -205,6 +208,15 @@ class DataBase:
                 (group_id,)
             )
             return cursor.fetchone()
+    
+    def get_group_id_by_name(self, group_name):
+        """
+        get a group's id by name
+        :param group_name: string
+        :return: int
+        """
+        group = self.get_group_by_name(group_name)
+        return group['id']
         
     def is_group_name_taken(self, group_name):
         """
@@ -212,7 +224,7 @@ class DataBase:
         :param group_name: string
         :return: bool
         """
-        return self.get_group_by_name(group_name) != None
+        return self.get_group_by_name(group_name) is not None
 
 
     def create_group(self, user_id, group_name):
@@ -237,6 +249,8 @@ class DataBase:
         :param group_id: int
         :return: None
         """
+        print(user_id)
+        print(group_id)
         with self.conn:
             cursor = self.conn.cursor()
             cursor.execute(
@@ -268,6 +282,7 @@ class DataBase:
         """
         with self.conn:
             cursor = self.conn.cursor()
+            cursor.row_factory = lambda cursor, row: row[0]
             cursor.execute(
                 'SELECT username FROM user WHERE id IN (SELECT user_id FROM gp_users WHERE gp_id = ?)',
                 (group_id,)
@@ -281,10 +296,14 @@ class DataBase:
         :return: list
         """
         with self.conn:
-            cursor = cursor.execute(
+            cursor = self.conn.cursor()
+            print(user_id)
+            cursor.execute(
+                # 'SELECT gp_id FROM gp_users WHERE user_id = ?',
                 'SELECT name FROM gp WHERE id IN (SELECT gp_id FROM gp_users WHERE user_id = ?)',
                 (user_id,)
             )
+            cursor.row_factory = lambda cursor, row: row[0]
             return cursor.fetchall()
     
     def delete_group(self, group_id):
@@ -297,6 +316,10 @@ class DataBase:
             cursor = self.conn.cursor()
             cursor.execute(
                 'DELETE FROM gp WHERE id = ?',
+                (group_id,)
+            )
+            cursor.execute(
+                'DELETE FROM gp_users WHERE gp_id = ?',
                 (group_id,)
             )
             self.conn.commit()
@@ -331,7 +354,24 @@ class DataBase:
                 (role, group_id, user_id)
             )
             self.conn.commit()
-        
+    
+    def promote_user(self, user_id, group_id):
+        """
+        promote a user in a group
+        :param user_id: int
+        :param group_id: int
+        :return: None
+        """
+        self.set_role(user_id, group_id, 'admin')
+    
+    def demote_user(self, user_id, group_id):
+        """
+        demote a user in a group
+        :param user_id: int
+        :param group_id: int
+        :return: None
+        """
+        self.set_role(user_id, group_id, 'member')
     
     def get_role(self, user_id, group_id):
         """
@@ -346,7 +386,9 @@ class DataBase:
                 'SELECT user_role FROM gp_users WHERE gp_id = ? AND user_id = ?',
                 (group_id, user_id)
             )
-            return cursor.fetchone()['user_role']
+            role = cursor.fetchone()['user_role']
+            print(role)
+            return role
     
     def is_admin(self, user_id, group_id):
         """
@@ -383,6 +425,15 @@ class DataBase:
         :return: bool
         """
         return self.is_owner(user_id, group_id)
+
+    def can_demote(self, user_id, group_id):
+        """
+        check if a user can demote other users in a group
+        :param user_id: int
+        :param group_id: int
+        :return: bool
+        """
+        return self.can_promote(user_id, group_id)
     
     def can_remove(self, remover_id, removee_id, group_id):
         """

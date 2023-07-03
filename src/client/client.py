@@ -48,6 +48,7 @@ def login(username, password):
     url = BASE_URL + '/auth/login'
     data = {'username': username, 'password': password}
     response = session.post(url, json=data)
+    print(response.text)
     myusername = username
     mypassword = password
     is_reconnect = True
@@ -63,6 +64,7 @@ def logout():
     sio.disconnect()
     url = BASE_URL + '/auth/logout'
     response = session.post(url, json={})
+    print(response.text)
     sio.connect(BASE_URL)
     is_reconnect = False
 
@@ -211,9 +213,8 @@ def get_groups():
     print(response.text)
 
 def get_group_users(group_name):
-    url = BASE_URL + '/group/get_group_users'
-    data = {'group_name': group_name}
-    response = session.post(url, json=data)
+    url = BASE_URL + '/group/group_users/' + group_name
+    response = session.get(url)
     print(response.text)
 
 def delete_group(group_name):

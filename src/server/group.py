@@ -9,7 +9,7 @@ from validation.group import validate_request_json, validate_value
 bp = Blueprint('group', __name__, url_prefix='/group')
 
 @login_required
-@bp.route('/create', methods=('POST',))
+@bp.route('/create_group', methods=('POST',))
 def create_group():
     """
     create a group
@@ -33,7 +33,8 @@ def create_group():
         return "Internal server error", 500
 
     try:
-        db.add_user_to_group(user_id, group_name, user_role='admin')
+        group_id = db.get_group_id_by_name(group_name)
+        db.add_user_to_group(user_id, group_id, user_role='admin')
     except:
         return "Internal server error", 500
     
@@ -60,16 +61,18 @@ def invite_user():
         if not db.username_exists(username):
             return "Username does not exist", 400
         user_id = db.get_user_id_by_username(username)
-        if not db.is_admin(admin_id, group_name):
+        if not db.is_group_name_taken(group_name):
+            return "Group does not exist", 400
+        group_id = db.get_group_id_by_name(group_name)
+        if not db.is_admin(admin_id, group_id) and not db.is_owner(admin_id, group_id):
             return "You are not an admin of this group", 400
-        elif db.is_user_in_group(user_id, group_name):
+        elif db.is_user_in_group(user_id, group_id):
             return "User is already in this group", 400
         else:
-            db.add_user_to_group(user_id, group_name, user_role='member')
+            db.add_user_to_group(user_id, group_id, user_role='member')
+            return "User invited successfully", 200
     except:
         return "Internal server error", 500
-    finally:
-        return "User invited successfully", 200
         
 
 @login_required
@@ -92,16 +95,18 @@ def remove_user():
         if not db.username_exists(username):
             return "Username does not exist", 400
         user_id = db.get_user_id_by_username(username)
-        if not db.is_admin(admin_id, group_name):
+        if not db.is_group_name_taken(group_name):
+            return "Group does not exist", 400
+        group_id = db.get_group_id_by_name(group_name)
+        if not db.is_admin(admin_id, group_id):
             return "You are not an admin of this group", 400
-        elif not db.is_user_in_group(user_id, group_name):
+        elif not db.is_user_in_group(user_id, group_id):
             return "User is not in this group", 400
         else:
-            db.remove_user_from_group(user_id, group_name)
+            db.remove_user_from_group(user_id, group_id)
+            return "User removed successfully", 200
     except:
         return "Internal server error", 500
-    finally:
-        return "User removed successfully", 200
 
 @login_required 
 @bp.route('/group_users/<string:group_name>', methods=('GET',))
@@ -116,11 +121,13 @@ def get_group_users(group_name):
     try:
         if not db.is_group_name_taken(group_name):
             return "Group does not exist", 400
-        users = db.get_group_users(group_name)
+        if not db.is_group_name_taken(group_name):
+            return "Group does not exist", 400
+        group_id = db.get_group_id_by_name(group_name)
+        users = db.get_group_users(group_id)
+        return users, 200
     except:
         return "Internal server error", 500
-    finally:
-        return users, 200
 
 @login_required
 @bp.route('/get_groups', methods=('GET',))
@@ -131,11 +138,10 @@ def get_groups():
     """
     try:
         user_id = current_user.get_id()
-        groups = db.get_groups(user_id)
-    except:
-        return "Internal server error", 500
-    finally:
+        groups = db.get_user_groups(user_id)
         return groups, 200
+    except Exception as e:
+        return "Internal server error", 500
 
 @login_required
 @bp.route('/delete_group', methods=('POST',))
@@ -149,17 +155,19 @@ def delete_group():
     if not validate_request_json(data, 'delete_group'):
         return "Invalid request format", 400
 
-    admin_id = current_user.get_id()
+    owner_id = current_user.get_id()
     group_name = data['group_name']
 
     try:
-        if not db.is_admin(admin_id, group_name):
-            return "You are not an admin of this group", 400
-        db.delete_group(group_name)
+        if not db.is_group_name_taken(group_name):
+            return "Group does not exist", 400
+        group_id = db.get_group_id_by_name(group_name)
+        if not db.is_owner(owner_id, group_id):
+            return "You are not an owner of this group", 400
+        db.delete_group(group_id)
+        return "Group deleted successfully", 200
     except:
         return "Internal server error", 500
-    finally:
-        return "Group deleted successfully", 200
 
 @login_required
 @bp.route('/leave_group', methods=('POST',))
@@ -177,13 +185,17 @@ def leave_group():
     group_name = data['group_name']
 
     try:
-        if not db.is_user_in_group(user_id, group_name):
+        if not db.is_group_name_taken(group_name):
+            return "Group does not exist", 400
+        group_id = db.get_group_id_by_name(group_name)
+        if not db.is_user_in_group(user_id, group_id):
             return "You are not in this group", 400
-        db.remove_user_from_group(user_id, group_name)
+        if db.is_owner(user_id, group_id):
+            return "You are the owner of this group, you cannot leave", 400
+        db.remove_user_from_group(user_id, group_id)
+        return "Group left successfully", 200
     except:
         return "Internal server error", 500
-    finally:
-        return "Group left successfully", 200
 
 @login_required
 @bp.route('/promote_user', methods=('POST',))
@@ -205,18 +217,22 @@ def promote_user():
         if not db.username_exists(username):
             return "Username does not exist", 400
         user_id = db.get_user_id_by_username(username)
-        if not db.can_promote(owner_id, group_name):
+        if not db.is_group_name_taken(group_name):
+            return "Group does not exist", 400
+        group_id = db.get_group_id_by_name(group_name)
+        print(user_id)
+        print(group_id)
+        if not db.can_promote(owner_id, group_id):
             return "You are not an owner of this group", 400
-        elif not db.is_user_in_group(user_id, group_name):
+        elif not db.is_user_in_group(user_id, group_id):
             return "User is not in this group", 400
-        elif db.is_admin(user_id, group_name):
+        elif db.is_admin(user_id, group_id):
             return "User is already an admin", 400
         else:
-            db.promote_user(user_id, group_name)
+            db.promote_user(user_id, group_id)
+            return "User promoted successfully", 200
     except:
         return "Internal server error", 500
-    finally:
-        return "User promoted successfully", 200
 
 @login_required
 @bp.route('/demote_user', methods=('POST',))
@@ -238,16 +254,20 @@ def demote_user():
         if not db.username_exists(username):
             return "Username does not exist", 400
         user_id = db.get_user_id_by_username(username)
-        if not db.can_demote(owner_id, group_name):
+        if not db.is_group_name_taken(group_name):
+            return "Group does not exist", 400
+        group_id = db.get_group_id_by_name(group_name)
+        print(user_id)
+        print(group_id)
+        if not db.can_demote(owner_id, group_id):
             return "You are not an owner of this group", 400
-        elif not db.is_user_in_group(user_id, group_name):
+        elif not db.is_user_in_group(user_id, group_id):
             return "User is not in this group", 400
-        elif not db.is_admin(user_id, group_name):
+        elif not db.is_admin(user_id, group_id):
             return "User is not an admin", 400
         else:
-            db.demote_user(user_id, group_name)
+            db.demote_user(user_id, group_id)
     except:
         return "Internal server error", 500
-    finally:
-        return "User demoted successfully", 200
+    return "User demoted successfully", 200
 

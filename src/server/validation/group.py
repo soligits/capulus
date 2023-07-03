@@ -2,14 +2,14 @@ import re
 
 format_keys = {
     "create_group": set(["group_name"]),
-    "invite_user": set(["group_name", "user_id"]),
-    "remove_user": set(["group_name", "user_id"]),
+    "invite_user": set(["group_name", "username"]),
+    "remove_user": set(["group_name", "username"]),
     "get_group_users": set(["group_name"]),
     "get_groups": set(),
-    "delete_group": set(),
+    "delete_group": set(["group_name"]),
     "leave_group": set(["group_name"]),
-    "promote_user": set(["group_name", "user_id"]),
-    "demote_user": set(["group_name", "user_id"])
+    "promote_user": set(["group_name", "username"]),
+    "demote_user": set(["group_name", "username"])
 }
 
 regex_keys = {

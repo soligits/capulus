@@ -64,4 +64,4 @@ def login():
 @bp.route('/logout', methods=['POST'])
 def logout():
     logout_user()
-    return 'ok', 200
+    return 'Logout succesful.', 200
