@@ -24,14 +24,16 @@ def publish_key():
     :return: None
     """
     user_id = current_user.get_id()
-    public_key = request.data
+    if 'public_key' not in request.form:
+        return 'Invalid request format', 400
+    public_key = request.form['public_key']
     # if not validate_value(str(public_key, encoding='utf-8'), 'public_key'):
     #     return 'Invalid public key', 400
     try:
         if not db.user_exists(user_id):
             return 'User not found', 404
-        elif db.user_has_public_key(user_id):
-            return 'User already has a public key', 400
+        # elif db.user_has_public_key(user_id):
+        #     return 'User already has a public key', 400
         db.save_public_key(user_id, public_key)
     except:
         return 'Internal server error', 500
