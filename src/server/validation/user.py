@@ -1,13 +1,15 @@
 import re
 
 format_keys = {
-    "publish_key": set("username", "public_key"),
-    "get_public_key": set("username"),
+    "publish_key": set(["username", "public_key"]),
+    "get_public_key": set(["username"]),
     "get_online_users": set()
 }
 
 regex_keys = {
-    "public_key": re.compile(r"^-----BEGIN PUBLIC KEY-----\n[a-zA-Z0-9+/=]+\n-----END PUBLIC KEY-----$")
+    "public_key": re.compile(r"^-----BEGIN PUBLIC KEY-----\n[a-zA-Z0-9+/=]+\n-----END PUBLIC KEY-----$"),
+    "user_id": re.compile(r"^[0-9]{1,10}$"),
+    "username": re.compile(r"^[a-zA-Z0-9_]{3,16}$")
 }
 
 

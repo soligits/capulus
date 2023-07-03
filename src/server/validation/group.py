@@ -1,20 +1,21 @@
 import re
 
 format_keys = {
-    "create_group": set("group_name"),
-    "invite_user": set("group_name", "user_id"),
-    "remove_user": set("group_name", "user_id"),
-    "get_group_users": set("group_name"),
+    "create_group": set(["group_name"]),
+    "invite_user": set(["group_name", "user_id"]),
+    "remove_user": set(["group_name", "user_id"]),
+    "get_group_users": set(["group_name"]),
     "get_groups": set(),
     "delete_group": set(),
-    "leave_group": set("group_name"),
-    "promote_user": set("group_name", "user_id"),
-    "demote_user": set("group_name", "user_id")
+    "leave_group": set(["group_name"]),
+    "promote_user": set(["group_name", "user_id"]),
+    "demote_user": set(["group_name", "user_id"])
 }
 
 regex_keys = {
     "group_name": re.compile(r"^[a-zA-Z0-9_]{3,16}$"),
-    "user_id": re.compile(r"^[0-9]{1,10}$")
+    "user_id": re.compile(r"^[0-9]{1,10}$"),
+    "username": re.compile(r"^[a-zA-Z0-9_]{3,16}$")
 }
 
 def validate_request_json(request, request_name):

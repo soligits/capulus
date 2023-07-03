@@ -50,7 +50,6 @@ app.register_blueprint(user_bp)
 app.register_blueprint(group_bp)
 
 
-
 @app.route('/')
 def home():
     return 'ok', 200

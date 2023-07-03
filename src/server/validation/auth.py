@@ -1,14 +1,14 @@
 import re
 
 format_keys = {
-    "register": set("username", "password"),
-    "login": set("username", "password"),
+    "register": set(["username", "password"]),
+    "login": set(["username", "password"]),
     "logout": set()
 }
 
 regex_keys = {
     "username": re.compile(r"^[a-zA-Z0-9_]{3,16}$"),
-    "password": re.compile(r"^[a-zA-Z0-9_]{8,16}$")
+    "password": re.compile(r"^[a-zA-Z0-9_]{3,16}$")
 }
 
 

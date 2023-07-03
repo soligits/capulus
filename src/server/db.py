@@ -169,6 +169,15 @@ class DataBase:
         user = self.get_user_by_id(user_id)
         return user['public_key'] is not None
     
+    def get_user_public_key(self, user_id):
+        """
+        get a user's public key
+        :param user_id: int
+        :return: string
+        """
+        user = self.get_user_by_id(user_id)
+        return user['public_key']
+    
     def get_group_by_name(self, group_name):
         """
         get a group by name

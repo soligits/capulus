@@ -23,7 +23,21 @@ def publish_key():
     publish a user's public key
     :return: None
     """
-    data = request.get_json()
+    user_id = current_user.get_id()
+    public_key = request.data
+    # if not validate_value(str(public_key, encoding='utf-8'), 'public_key'):
+    #     return 'Invalid public key', 400
+    try:
+        if not db.user_exists(user_id):
+            return 'User not found', 404
+        elif db.user_has_public_key(user_id):
+            return 'User already has a public key', 400
+        db.save_public_key(user_id, public_key)
+    except:
+        return 'Internal server error', 500
+    finally:
+        return 'Public key published', 200
+
     
 
 @bp.route('/get_public_key', methods=('POST',))
@@ -39,15 +53,15 @@ def get_public_key():
     if not validate_value(username, 'username'):
         return 'Invalid username', 400
     try:
-        if not db.user_exists(username):
+        if not db.username_exists(username):
             return 'User not found', 404
-        elif not db.user_has_public_key(username):
+        user_id = db.get_user_id_by_username(username)
+        if not db.user_has_public_key(user_id):
             return 'User has no public key', 404
-        public_key = db.get_public_key(username)
+        public_key = db.get_user_public_key(user_id)
     except:
         return 'Internal server error', 500
-    finally:
-        return public_key, 200
+    return public_key, 200
 
 @bp.route('/get_online_users', methods=('GET',))
 def get_online_users():
