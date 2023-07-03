@@ -146,7 +146,7 @@ class DataBase:
             )
             self.conn.commit()
     
-    def get_public_key(self, username):
+    def get_public_key_by_username(self, username):
         """
         get a user's public key
         :param username: string
@@ -159,6 +159,15 @@ class DataBase:
                 (username,)
             )
             return cursor.fetchone()['public_key']
+    
+    def user_has_public_key(self, user_id):
+        """
+        check if a user has a public key
+        :param user_id: int
+        :return: bool
+        """
+        user = self.get_user_by_id(user_id)
+        return user['public_key'] is not None
     
     def get_group_by_name(self, group_name):
         """

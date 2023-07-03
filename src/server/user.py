@@ -10,33 +10,22 @@ from __main__ import socketio, db, authenticated_only
 from flask_login import login_required, current_user
 from models import User
 
+from validation.user import validate_request_json, validate_value
+
 bp = Blueprint('user', __name__, url_prefix='/user')
 
 online_users = set()
 
 @login_required
-@bp.route('/publish_key', methods= ('POST',))
+@bp.route('/publish_key', methods=('POST',))
 def publish_key():
     """
     publish a user's public key
     :return: None
     """
-    data = request.form
-    user_id = current_user.get_id()
-    public_key = data['public_key']
-
-    # verify the signature
-    try :
-        print(public_key)
-        print(user_id)
-        db.save_public_key(user_id, public_key)
-        current_user.public_key = public_key
-        return 'ok', 200
+    data = request.get_json()
     
-    except :
-        return 'Verification failed', 400
 
-@login_required
 @bp.route('/get_public_key', methods=('POST',))
 def get_public_key():
     """
@@ -44,9 +33,21 @@ def get_public_key():
     :return: None
     """
     data = request.get_json()
+    if not validate_request_json(data, 'get_public_key'):
+        return 'Invalid request format', 400
     username = data['username']
-    public_key = db.get_public_key(username)
-    return public_key, 200
+    if not validate_value(username, 'username'):
+        return 'Invalid username', 400
+    try:
+        if not db.user_exists(username):
+            return 'User not found', 404
+        elif not db.user_has_public_key(username):
+            return 'User has no public key', 404
+        public_key = db.get_public_key(username)
+    except:
+        return 'Internal server error', 500
+    finally:
+        return public_key, 200
 
 @bp.route('/get_online_users', methods=('GET',))
 def get_online_users():
