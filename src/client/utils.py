@@ -32,17 +32,18 @@ def decrypt_message_symmetric(nonce, tag, ciphertext, session_key):
 
 
 def sign_message(message, private_key):
+    private_key = RSA.import_key(private_key)
     signer = pkcs1_15.new(private_key)
     h = SHA256.new()
-    h.update(message.encode())
+    h.update(message)
     return signer.sign(h)
 
-def verify_message(message, signature, public_key):
+def verify_signature(message, signature, public_key):
     rsa_key_bin = RSA.import_key(public_key)
     public_key = rsa_key_bin.publickey()
     verifier = pkcs1_15.new(public_key)
     h = SHA256.new()
-    h.update(message.encode())
+    h.update(message)
     try:
         verifier.verify(h, signature)
         return True

@@ -17,6 +17,16 @@ public_keys = {}
 group_session_keys = {}
 messages = {}
 
+def check_init_user_data(username):
+    if username not in public_keys:
+        getpublickey(username)
+    if username not in session_key_numbers:
+        session_key_numbers[username] = 0
+    if username not in session_keys:
+        session_keys[username] = {}
+    if username not in messages:
+        messages[username] = {}
+
 # set up base url
 BASE_URL = 'http://localhost:5000'
 
@@ -77,6 +87,10 @@ def getonlineusers():
 
 def key_exchange_0(username):
     # generate session key
+    print('\nkey_exchange_0')
+
+    check_init_user_data(username)
+
     session_key_numbers[username] += 1
     messages[username][session_key_numbers[username]] = []
 
@@ -87,6 +101,7 @@ def key_exchange_0(username):
         'dh': dh1,
         'shared_key': None
     }
+    messages[username][key_number] = []
 
     message_obj = {
         'message': dh1_public,
@@ -96,51 +111,45 @@ def key_exchange_0(username):
     sio.emit('send_message', {'message': message_obj, 'room': username})
 
 def key_exchange_1(username, key_number, dh1_public):
+    print('\nkey_exchange_1')
+    
+    check_init_user_data(username)
 
     dh2 = DiffieHellman(group=14, key_bits=540)
     dh2_public = dh2.get_public_key()
-    # print(dh1_public)
     dh2_shared = dh2.generate_shared_key(dh1_public)
 
     session_key_numbers[username] = key_number
-    if username not in session_keys:
-        session_keys[username] = {}
-    if username not in messages:
-        messages[username] = {}
 
     session_keys[username][key_number] = {
         'dh': dh2,
         'shared_key': dh2_shared[:32]
     }
+    messages[username][key_number] = []
     message_obj = {
         'message': dh2_public,
         'type': 'key_exchange_2',
         'key_number': key_number
     }
-    messages[username][key_number] = []
     sio.emit('send_message', {'message': message_obj, 'room': username})
 
 def key_exchange_2(username, key_number, dh2_public):
-    # print('exhanging key finished')
-    # print(username)
-    # print(session_keys[username])
+    print('\nkey_exchange_2')
     dh3 = session_keys[username][key_number]['dh']
     dh3_shared = dh3.generate_shared_key(dh2_public)
+    messages[username][key_number] = []
     session_keys[username][key_number] = {
         'dh': dh3,
         'shared_key': dh3_shared[:32]
     }
-    messages[username][key_number] = []
-    # print('shared key: ' + str(dh3_shared))
 
 def send_message(username):
-    last_key_number = session_key_numbers[username]
-    if last_key_number == 0 or len(messages[username][last_key_number]) > 10:
-        key_exchange_0(username)
 
-    
-    last_key_number = session_key_numbers[username]
-    while len(messages[username][last_key_number]) <= 10:
+    while True:
+        
+        last_key_number = session_key_numbers[username]
+        if last_key_number == 0 or len(messages[username][last_key_number]) >= 10:
+            key_exchange_0(username)
         message = input('send to ' + username + ': ')
         if message == 'exit':
             return
@@ -148,6 +157,7 @@ def send_message(username):
         last_key_number = session_key_numbers[username]
         session_key = session_keys[username][last_key_number]['shared_key']
         public_key = public_keys[username]
+        messages[username][last_key_number].append({"sender": myusername, "message": message})
         nonce, tag, ciphertext = utils.encrypt_message_symmetric(message, session_key)
         message = {
             'nonce': nonce,
@@ -164,17 +174,8 @@ def send_message(username):
             'key_number': last_key_number
         }
         sio.emit('send_message', {'message': message_obj, 'room': username})
-    # sio.wait()
 
 def chat(username):
-    if username not in public_keys:
-        getpublickey(username)
-    if username not in session_key_numbers:
-        session_key_numbers[username] = 0
-    if username not in session_keys:
-        session_keys[username] = {}
-    if username not in messages:
-        messages[username] = {}
     sio.emit('join', {'room': username})
     send_message(username)
     sio.emit('leave', {'room': username})
@@ -211,7 +212,6 @@ def on_disconnect():
 
 @sio.on('join')
 def on_join(data):
-    # print('\n' + data)
     pass
 
 @sio.on('logged_in')
@@ -227,8 +227,6 @@ def on_receive_message(message):
     username = message['sender']
     if username not in public_keys:
         getpublickey(username)
-    # print(username)
-    # print(myusername)
     if username == myusername:
         return
     message = message['message']
@@ -253,10 +251,8 @@ def on_receive_message(message):
         nonce = message['nonce']
         tag = message['tag']
         ciphertext = message['ciphertext']
-        # print('sender: ', username)
-        # print('me: ', myusername)
         decrypted = utils.decrypt_message_symmetric(nonce, tag, ciphertext, session_key)
-        messages[username][key_number].append(decrypted)
+        messages[username][key_number].append({"sender": username, "message": decrypted})
         print('\n' + username + ': ' + decrypted)
 
 @sio.on('receive_group_message')
