@@ -21,6 +21,7 @@ create table gp_users (
     gp_id integer not null,
     user_id integer not null,
     user_role varchar(255) not null,
-    foreign key (gp_id) references gp(id),
-    foreign key (user_id) references user(id)
+    foreign key (gp_id) references gp(id) on delete cascade,
+    foreign key (user_id) references user(id) on delete cascade
 );
+

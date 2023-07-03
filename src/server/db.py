@@ -67,13 +67,27 @@ class DataBase:
         )
         return self.cursor.fetchone()
     
+    def get_user_id_by_username(self, username):
+        """
+        get a user's id from the db
+        :param username: string
+        :return: int
+        """
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'SELECT id FROM user WHERE username = ?',
+                (username,)
+            )
+            return cursor.fetchone()['id']
+
+    
     def get_user_by_id(self, user_id):
         """
         get a user from the db
         :param user_id: int
         :return: tuple
         """
-        print(user_id)
         with self.conn:
             cursor = self.conn.cursor()
             cursor.execute(
@@ -81,6 +95,31 @@ class DataBase:
                 (user_id,)
             )
             return cursor.fetchone()
+    
+    def user_exists(self, user_id):
+        """
+        check if a user exists
+        :param user_id: int
+        :return: bool
+        """
+        return self.get_user_by_id(user_id) is not None
+    
+    def username_exists(self, username):
+        """
+        check if a username exists
+        :param username: string
+        :return: bool
+        """
+        return self.get_user(username) is not None
+    
+    def is_username_taken(self, username):
+        """
+        check if a username is taken
+        :param username: string
+        :return: bool
+        """
+        return self.get_user(username) is not None
+
     
     def verify_password(self, username, password):
         """
@@ -121,17 +160,42 @@ class DataBase:
             )
             return cursor.fetchone()['public_key']
     
-    def get_group_id_by_name(self, group_name):
+    def get_group_by_name(self, group_name):
         """
-        get a group's id
+        get a group by name
         :param group_name: string
-        :return: int
+        :return: tuple
         """
-        self.cursor.execute(
-            'SELECT id FROM gp WHERE name = ?',
-            (group_name,)
-        )
-        return self.cursor.fetchone()['id']
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'SELECT * FROM gp WHERE name = ?',
+                (group_name,)
+            )
+            return cursor.fetchone()
+    
+    def get_group_by_id(self, group_id):
+        """
+        get a group by id
+        :param group_id: int
+        :return: tuple
+        """
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'SELECT * FROM gp WHERE id = ?',
+                (group_id,)
+            )
+            return cursor.fetchone()
+        
+    def is_group_name_taken(self, group_name):
+        """
+        check if a group name is already taken
+        :param group_name: string
+        :return: bool
+        """
+        return self.get_group_by_name(group_name) != None
+
 
     def create_group(self, user_id, group_name):
         """
@@ -140,38 +204,13 @@ class DataBase:
         :param group_name: string
         :return: None
         """
-        self.cursor.execute(
-            'INSERT INTO gp (name, owner_id) VALUES (?, ?)',
-            (group_name, user_id)
-        )
-        self.conn.commit()
-    
-    def is_admin(self, user_id, group_id):
-        """
-        check if a user is an admin of a group
-        :param user_id: int
-        :param group_id: int
-        :return: bool
-        """
-        self.cursor.execute(
-            'SELECT user_role FROM gp_users WHERE gp_id = ? AND user_id = ?',
-            (group_id, user_id)
-        )
-        user_role = self.cursor.fetchone()['user_role']
-        return user_role == 'owner' or user_role == 'admin'
-    
-    def is_owner(self, user_id, group_id):
-        """
-        check if a user is the owner of a group
-        :param user_id: int
-        :param group_id: int
-        :return: bool
-        """
-        self.cursor.execute(
-            'SELECT user_role FROM gp_users WHERE gp_id = ? AND user_id = ?',
-            (group_id, user_id)
-        )
-        return self.cursor.fetchone()['user_role'] == 'owner'
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'INSERT INTO gp (name, owner_id) VALUES (?, ?)',
+                (group_name, user_id)
+            )
+            self.conn.commit()
     
     def add_user_to_group(self, user_id, group_id, user_role):
         """
@@ -180,11 +219,28 @@ class DataBase:
         :param group_id: int
         :return: None
         """
-        self.cursor.execute(
-            'INSERT INTO gp_users (gp_id, user_id, user_role) VALUES (?, ?, ?)',
-            (group_id, user_id, user_role)
-        )
-        self.conn.commit()
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'INSERT INTO gp_users (gp_id, user_id, user_role) VALUES (?, ?, ?)',
+                (group_id, user_id, user_role)
+            )
+            self.conn.commit()
+
+    def is_user_in_group(self, user_id, group_id):
+        """
+        check if a user is in a group
+        :param user_id: int
+        :param group_id: int
+        :return: bool
+        """
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'SELECT * FROM gp_users WHERE gp_id = ? AND user_id = ?',
+                (group_id, user_id)
+            )
+            return cursor.fetchone() is not None
 
     def get_group_users(self, group_id):
         """
@@ -192,23 +248,26 @@ class DataBase:
         :param group_id: int
         :return: list
         """
-        self.cursor.execute(
-            'SELECT username FROM user WHERE id IN (SELECT user_id FROM gp_users WHERE gp_id = ?)',
-            (group_id,)
-        )
-        return self.cursor.fetchall()
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'SELECT username FROM user WHERE id IN (SELECT user_id FROM gp_users WHERE gp_id = ?)',
+                (group_id,)
+            )
+            return cursor.fetchall()
     
-    def get_groups(self, user_id):
+    def get_user_groups(self, user_id):
         """
         get all groups a user is in
         :param user_id: int
         :return: list
         """
-        self.cursor.execute(
-            'SELECT name FROM gp WHERE id IN (SELECT gp_id FROM gp_users WHERE user_id = ?)',
-            (user_id,)
-        )
-        return self.cursor.fetchall()
+        with self.conn:
+            cursor = cursor.execute(
+                'SELECT name FROM gp WHERE id IN (SELECT gp_id FROM gp_users WHERE user_id = ?)',
+                (user_id,)
+            )
+            return cursor.fetchall()
     
     def delete_group(self, group_id):
         """
@@ -216,11 +275,78 @@ class DataBase:
         :param group_id: int
         :return: None
         """
-        self.cursor.execute(
-            'DELETE FROM gp WHERE id = ?',
-            (group_id,)
-        )
-        self.conn.commit()
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'DELETE FROM gp WHERE id = ?',
+                (group_id,)
+            )
+            self.conn.commit()
+
+    def remove_user_from_group(self, user_id, group_id):
+        """
+        remove a user from a group
+        :param user_id: int
+        :param group_id: int
+        :return: None
+        """
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'DELETE FROM gp_users WHERE gp_id = ? AND user_id = ?',
+                (group_id, user_id)
+            )
+            self.conn.commit()
+    
+    def set_role(self, user_id, group_id, role):
+        """
+        set a user's role in a group
+        :param user_id: int
+        :param group_id: int
+        :param role: string
+        :return: None
+        """
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'UPDATE gp_users SET user_role = ? WHERE gp_id = ? AND user_id = ?',
+                (role, group_id, user_id)
+            )
+            self.conn.commit()
+        
+    
+    def get_role(self, user_id, group_id):
+        """
+        get a user's role in a group
+        :param user_id: int
+        :param group_id: int
+        :return: string
+        """
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'SELECT user_role FROM gp_users WHERE gp_id = ? AND user_id = ?',
+                (group_id, user_id)
+            )
+            return cursor.fetchone()['user_role']
+    
+    def is_admin(self, user_id, group_id):
+        """
+        check if a user is an admin in a group
+        :param user_id: int
+        :param group_id: int
+        :return: bool
+        """
+        return self.get_role(user_id, group_id) == 'admin'
+    
+    def is_owner(self, user_id, group_id):
+        """
+        check if a user is the owner of a group
+        :param user_id: int
+        :param group_id: int
+        :return: bool
+        """
+        return self.get_group_by_id(group_id)['owner_id'] == user_id
 
     def is_member(self, user_id, group_id):
         """
@@ -229,21 +355,30 @@ class DataBase:
         :param group_id: int
         :return: bool
         """
-        self.cursor.execute(
-            'SELECT * FROM gp_users WHERE gp_id = ? AND user_id = ?',
-            (group_id, user_id)
-        )
-        return self.cursor.fetchone() is not None
+        return self.get_role(user_id, group_id) == 'member'
     
-    def make_admin(self, user_id, group_id):
+    def can_promote(self, user_id, group_id):
         """
-        make a user an admin of a group
+        check if a user can promote other users in a group
         :param user_id: int
         :param group_id: int
-        :return: None
+        :return: bool
         """
-        self.cursor.execute(
-            'UPDATE gp_users SET user_role = ? WHERE gp_id = ? AND user_id = ?',
-            ('admin', group_id, user_id)
-        )
-        self.conn.commit()
+        return self.is_owner(user_id, group_id)
+    
+    def can_remove(self, remover_id, removee_id, group_id):
+        """
+        check if a user can remove another user from a group
+        :param remover_id: int
+        :param removee_id: int
+        :param group_id: int
+        :return: bool
+        """
+        if removee_id == remover_id:
+            return False
+        if self.is_owner(remover_id, group_id):
+            return True
+        if self.is_admin(remover_id, group_id) and self.is_member(removee_id, group_id):
+            return True
+        return False
+    

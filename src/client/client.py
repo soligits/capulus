@@ -2,7 +2,9 @@ import requests
 import utils
 import socketio
 from diffiehellman import DiffieHellman
+from threading import Lock
 
+is_reconnect = False
 
 myusername = None
 mypassword = None
@@ -17,7 +19,9 @@ public_keys = {}
 group_session_keys = {}
 messages = {}
 
-def check_init_user_data(username):
+key_exchange_lock = Lock()
+
+def init_check_user_data(username):
     if username not in public_keys:
         getpublickey(username)
     if username not in session_key_numbers:
@@ -40,25 +44,27 @@ def register(username, password):
 
 
 def login(username, password):
-    global myusername
-    global mypassword
+    global myusername, mypassword, is_reconnect
     url = BASE_URL + '/auth/login'
     data = {'username': username, 'password': password}
     response = session.post(url, json=data)
     myusername = username
     mypassword = password
+    is_reconnect = True
     sio.disconnect()
     sio.connect(BASE_URL)
-    print(response.text)
+    is_reconnect = False
 
 
-def logout(username):
+def logout():
+    global is_reconnect
+    
+    is_reconnect = True
+    sio.disconnect()
     url = BASE_URL + '/auth/logout'
-    data = {'username': username}
-    response = session.post(url, json=data)
-    sio.disconnect()
+    response = session.post(url, json={})
     sio.connect(BASE_URL)
-    print(response.text)
+    is_reconnect = False
 
 
 def publishkey(username, password):
@@ -86,10 +92,11 @@ def getonlineusers():
     print(response.text)
 
 def key_exchange_0(username):
+    key_exchange_lock.acquire()
     # generate session key
     print('\nkey_exchange_0')
 
-    check_init_user_data(username)
+    init_check_user_data(username)
 
     session_key_numbers[username] += 1
     messages[username][session_key_numbers[username]] = []
@@ -113,7 +120,7 @@ def key_exchange_0(username):
 def key_exchange_1(username, key_number, dh1_public):
     print('\nkey_exchange_1')
     
-    check_init_user_data(username)
+    init_check_user_data(username)
 
     dh2 = DiffieHellman(group=14, key_bits=540)
     dh2_public = dh2.get_public_key()
@@ -134,6 +141,7 @@ def key_exchange_1(username, key_number, dh1_public):
     sio.emit('send_message', {'message': message_obj, 'room': username})
 
 def key_exchange_2(username, key_number, dh2_public):
+    
     print('\nkey_exchange_2')
     dh3 = session_keys[username][key_number]['dh']
     dh3_shared = dh3.generate_shared_key(dh2_public)
@@ -142,14 +150,19 @@ def key_exchange_2(username, key_number, dh2_public):
         'dh': dh3,
         'shared_key': dh3_shared[:32]
     }
+    key_exchange_lock.release()
 
 def send_message(username):
+
+    init_check_user_data(username)
 
     while True:
         
         last_key_number = session_key_numbers[username]
         if last_key_number == 0 or len(messages[username][last_key_number]) >= 10:
             key_exchange_0(username)
+            key_exchange_lock.acquire()
+            key_exchange_lock.release()
         message = input('send to ' + username + ': ')
         if message == 'exit':
             return
@@ -180,13 +193,70 @@ def chat(username):
     send_message(username)
     sio.emit('leave', {'room': username})
 
+def create_group(group_name):
+    url = BASE_URL + '/group/create_group'
+    data = {'group_name': group_name}
+    response = session.post(url, json=data)
+    print(response.text)
+
+def invite_user(group_name, username):
+    url = BASE_URL + '/group/invite_user'
+    data = {'group_name': group_name, 'username': username}
+    response = session.post(url, json=data)
+    print(response.text)
+
+def get_groups():
+    url = BASE_URL + '/group/get_groups'
+    response = session.get(url)
+    print(response.text)
+
+def get_group_users(group_name):
+    url = BASE_URL + '/group/get_group_users'
+    data = {'group_name': group_name}
+    response = session.post(url, json=data)
+    print(response.text)
+
+def delete_group(group_name):
+    url = BASE_URL + '/group/delete_group'
+    data = {'group_name': group_name}
+    response = session.post(url, json=data)
+    print(response.text)
+
+def remove_user(group_name, username):
+    url = BASE_URL + '/group/remove_user'
+    data = {'group_name': group_name, 'username': username}
+    response = session.post(url, json=data)
+    print(response.text)
+
+def promote_user(group_name, username):
+    url = BASE_URL + '/group/promote_user'
+    data = {'group_name': group_name, 'username': username}
+    response = session.post(url, json=data)
+    print(response.text)
+
+def demote_user(group_name, username):
+    url = BASE_URL + '/group/demote_user'
+    data = {'group_name': group_name, 'username': username}
+    response = session.post(url, json=data)
+    print(response.text)
+
+def leave_group(group_name):
+    url = BASE_URL + '/group/leave_group'
+    data = {'group_name': group_name}
+    response = session.post(url, json=data)
+    print(response.text)
+
+def group_chat(group_name):
+    pass
+
+
 def processCommand(command, args):
     if command == 'register':
         register(args[0], args[1])
     elif command == 'login':
         login(args[0], args[1])
     elif command == 'logout':
-        logout(args[0])
+        logout()
     elif command == 'publish_key':
         publishkey(args[0], args[1])
     elif command == 'get_public_key':
@@ -195,6 +265,26 @@ def processCommand(command, args):
         getonlineusers()
     elif command == 'chat':
         chat(args[0])
+    elif command == 'create_group':
+        create_group(args[0])
+    elif command == 'invite_user':
+        invite_user(args[0], args[1])
+    elif command == 'get_groups':
+        get_groups()
+    elif command == 'get_group_users':
+        get_group_users(args[0])
+    elif command == 'delete_group':
+        delete_group(args[0])
+    elif command == 'remove_user':
+        remove_user(args[0], args[1])
+    elif command == 'leave_group':
+        leave_group(args[0])
+    elif command == 'promote_user':
+        promote_user(args[0], args[1])
+    elif command == 'demote_user':
+        demote_user(args[0], args[1])
+    elif command == 'group_chat':
+        group_chat(args[0])
     elif command == 'exit':
         sio.disconnect()
         exit()
@@ -204,11 +294,13 @@ def processCommand(command, args):
 
 @sio.on('connect')
 def on_connect():
-    print('\nconnected to server')
+    if not is_reconnect:
+        print('\nconnected to server')
 
 @sio.on('disconnect')
 def on_disconnect():
-    print('\ndisconnected from server')
+    if not is_reconnect:
+        print('\ndisconnected from server')
 
 @sio.on('join')
 def on_join(data):
@@ -253,7 +345,7 @@ def on_receive_message(message):
         ciphertext = message['ciphertext']
         decrypted = utils.decrypt_message_symmetric(nonce, tag, ciphertext, session_key)
         messages[username][key_number].append({"sender": username, "message": decrypted})
-        print('\n' + username + ': ' + decrypted)
+        print(username + ': ' + decrypted)
 
 @sio.on('receive_group_message')
 def on_receive_group_message(data):

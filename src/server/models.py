@@ -12,4 +12,7 @@ class User(UserMixin):
     def __repr__(self):
         return '<User {}>'.format(self.username)
     
+    def get_id(self):
+        return self.id
+    
     

@@ -48,7 +48,6 @@ def get_public_key():
     public_key = db.get_public_key(username)
     return public_key, 200
 
-@login_required
 @bp.route('/get_online_users', methods=('GET',))
 def get_online_users():
     """
@@ -85,7 +84,7 @@ def disconnect():
         leave_room(username)
         online_users.remove(username)
         name = username
-    print(name + ' Connected.')
+    print(name + ' Disconnected.')
 
 
 
