@@ -31,6 +31,8 @@ def login(username, password):
     url = BASE_URL + '/auth/login'
     data = {'username': username, 'password': password}
     response = session.post(url, json=data)
+    myusername = username
+    mypassword = password
     # sio.emit('online')
     # sio.emit('join', {'room': username})
     print(response.text)
@@ -221,6 +223,8 @@ def on_receive_message(message):
         nonce = message['nonce']
         tag = message['tag']
         ciphertext = message['ciphertext']
+        # print('sender: ', username)
+        # print('me: ', myusername)
         decrypted = utils.decrypt_message_symmetric(nonce, tag, ciphertext, session_key)
         messages[username][key_number].append(decrypted)
         print('\n' + username + ': ' + decrypted)

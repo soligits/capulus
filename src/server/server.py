@@ -35,7 +35,6 @@ def authenticated_only(f):
     return wrapped
 
 
-
 @login_manager.user_loader
 def load_user(user_id):
     return User(db.get_user_by_id(user_id))
@@ -48,7 +47,6 @@ from group import bp as group_bp
 app.register_blueprint(auth_bp)
 app.register_blueprint(user_bp)
 app.register_blueprint(group_bp)
-
 
 
 @app.route('/')
