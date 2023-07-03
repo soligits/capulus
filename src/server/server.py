@@ -21,7 +21,6 @@ Session(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-
 db = DataBase()
 socketio = SocketIO(app, manage_session=False)
 

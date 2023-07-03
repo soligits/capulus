@@ -28,6 +28,8 @@ def register(username, password):
 
 
 def login(username, password):
+    global myusername
+    global mypassword
     url = BASE_URL + '/auth/login'
     data = {'username': username, 'password': password}
     response = session.post(url, json=data)
@@ -74,6 +76,7 @@ def getonlineusers():
 def key_exchange_0(username):
     # generate session key
     session_key_numbers[username] += 1
+    messages[username][session_key_numbers[username]] = []
 
     dh1 = DiffieHellman(group=14, key_bits=540)
     dh1_public = dh1.get_public_key()
@@ -134,25 +137,27 @@ def send_message(username):
         key_exchange_0(username)
 
     
-    message = input('send to ' + username + ': ')
-    if message == 'exit':
-        return
-    
     last_key_number = session_key_numbers[username]
-    session_key = session_keys[username][last_key_number]['shared_key']
-    public_key = public_keys[username]
-    nonce, tag, ciphertext = utils.encrypt_message_symmetric(message, session_key)
-    message = {
-        'nonce': nonce,
-        'tag': tag,
-        'ciphertext': ciphertext
-    }
-    message_obj = {
-        'message': message,
-        'type': 'normal',
-        'key_number': last_key_number
-    }
-    sio.emit('send_message', {'message': message_obj, 'room': username})
+    while len(messages[username][last_key_number]) <= 10:
+        message = input('send to ' + username + ': ')
+        if message == 'exit':
+            return
+        
+        last_key_number = session_key_numbers[username]
+        session_key = session_keys[username][last_key_number]['shared_key']
+        public_key = public_keys[username]
+        nonce, tag, ciphertext = utils.encrypt_message_symmetric(message, session_key)
+        message = {
+            'nonce': nonce,
+            'tag': tag,
+            'ciphertext': ciphertext
+        }
+        message_obj = {
+            'message': message,
+            'type': 'normal',
+            'key_number': last_key_number
+        }
+        sio.emit('send_message', {'message': message_obj, 'room': username})
     # sio.wait()
 
 def chat(username):
@@ -200,11 +205,14 @@ def on_disconnect():
 
 @sio.on('join')
 def on_join(data):
-    print('\n' + data)
+    # print('\n' + data)
+    pass
 
 @sio.on('receive_message')
 def on_receive_message(message):
     username = message['sender']
+    # print(username)
+    # print(myusername)
     if username == myusername:
         return
     message = message['message']
