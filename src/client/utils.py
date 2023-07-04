@@ -30,6 +30,19 @@ def decrypt_message_symmetric(nonce, tag, ciphertext, session_key):
     plaintext = cipher_aes.decrypt(ciphertext)
     return plaintext.decode()
 
+def encrypt_session_key(session_key, public_key):
+    recipient_key = RSA.import_key(public_key)
+    cipher_rsa = PKCS1_OAEP.new(recipient_key)
+    enc_session_key = cipher_rsa.encrypt(session_key)
+
+    return enc_session_key
+
+def decrypt_session_key(enc_session_key, private_key):
+    private_key = RSA.import_key(private_key)
+    cipher_rsa = PKCS1_OAEP.new(private_key)
+    session_key = cipher_rsa.decrypt(enc_session_key)
+    return session_key
+
 
 def sign_message(message, private_key):
     private_key = RSA.import_key(private_key)
@@ -49,6 +62,10 @@ def verify_signature(message, signature, public_key):
         return True
     except:
         return False
+
+def get_symmetric_key():
+    return get_random_bytes(32)
+
 
 
 

@@ -99,6 +99,20 @@ class DataBase:
             )
             return cursor.fetchone()
     
+    def get_username_by_id(self, user_id):
+        """
+        get a user's username from the db
+        :param user_id: int
+        :return: string
+        """
+        with self.conn:
+            cursor = self.conn.cursor()
+            cursor.execute(
+                'SELECT username FROM user WHERE id = ?',
+                (user_id,)
+            )
+            return cursor.fetchone()['username']
+    
     def user_exists(self, user_id):
         """
         check if a user exists
@@ -203,6 +217,7 @@ class DataBase:
         """
         with self.conn:
             cursor = self.conn.cursor()
+            print('-----')
             cursor.execute(
                 'SELECT * FROM gp WHERE id = ?',
                 (group_id,)
@@ -217,6 +232,15 @@ class DataBase:
         """
         group = self.get_group_by_name(group_name)
         return group['id']
+    
+    def get_group_owner_id(self, group_id):
+        """
+        get a group's owner id
+        :param group_id: int
+        :return: int
+        """
+        group = self.get_group_by_id(group_id)
+        return group['owner_id']
         
     def is_group_name_taken(self, group_name):
         """

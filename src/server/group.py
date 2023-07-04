@@ -2,8 +2,9 @@ from flask import (
     Blueprint, g, request
 )
 
-from __main__ import db
+from __main__ import db, authenticated_only, socketio
 from flask_login import login_required, current_user
+from flask_socketio import join_room, leave_room
 from validation.group import validate_request_json, validate_value
 
 bp = Blueprint('group', __name__, url_prefix='/group')
@@ -271,3 +272,59 @@ def demote_user():
         return "Internal server error", 500
     return "User demoted successfully", 200
 
+@login_required
+@bp.route('/get_group_owner', methods=('POST',))
+def get_group_owner():
+    """
+    get the owner of a group
+    :return: owner username
+    """
+    data = request.get_json()
+    # check data format
+    # if not validate_request_json(data, 'get_group_owner'):
+    #     return "Invalid request format", 400
+
+    group_name = data['group_name']
+
+    try:
+        if not db.is_group_name_taken(group_name):
+            return "Group does not exist", 400
+        group_id = db.get_group_id_by_name(group_name)
+        print(group_id)
+        owner_id = db.get_group_owner_id(group_id)
+        print(owner_id)
+        owner_username = db.get_username_by_id(owner_id)
+        return owner_username, 200
+    except Exception as e:
+        print(e)
+        return "Internal server error", 500
+
+
+@socketio.on('join_group_chat')
+@authenticated_only
+def join_group_chat(data):
+    group_name = data['group_name']
+    room_name = '%' + group_name
+    join_room(room_name)
+    username = current_user.username
+    message = username + ' joined group room ' + group_name
+    socketio.emit('join_group_chat', {'message': message, 'group_name': group_name, 'username': username}, to=room_name)
+
+@socketio.on('leave_group_chat')
+@authenticated_only
+def leave_group_chat(data):
+    group_name = data['group_name']
+    room_name = '%' + group_name
+    leave_room(room_name)
+    username = current_user.username
+    message = username + ' left group room ' + group_name
+    socketio.emit('leave_group_chat', {'message': message, 'group_name': group_name, 'username': username}, to=room_name)
+
+@socketio.on('send_group_message')
+@authenticated_only
+def send_group_message(data):
+    group_name = data['group_name']
+    room_name = '%' + group_name
+    message = data['message']
+    username = current_user.username
+    socketio.emit('receive_group_message', {'message': message, 'sender': username, 'group_name': group_name}, room=room_name)
